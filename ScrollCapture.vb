@@ -29,6 +29,7 @@ Public Class ScrollCapture
 
     ' 定数定義
     Private Const WM_VSCROLL As UInteger = &H115
+    Private Const SB_PAGEUP As UInteger = 2
     Private Const SB_PAGEDOWN As UInteger = 3
     Private Const SB_TOP As UInteger = 6
 
@@ -55,16 +56,21 @@ Public Class ScrollCapture
         If hParent = IntPtr.Zero Then Return Nothing
 
         ' Internet Explorer_Server ウィンドウを検索
-        Dim hWndIE As IntPtr = FindIEWindow(hParent)
-        If hWndIE = IntPtr.Zero Then Return Nothing
+        Dim hWnd As IntPtr = FindIEWindow(hParent)
+        If hWnd = IntPtr.Zero Then
+            hWnd = hParent
+        End If
 
         ' ウィンドウを前面に移動
-        SetForegroundWindow(hWndIE)
-        Thread.Sleep(100)
+        SetForegroundWindow(hWnd)
+        Thread.Sleep(300)
 
         ' スクロールを最上部に設定
-        SendMessage(hWndIE, WM_VSCROLL, CType(SB_TOP, IntPtr), IntPtr.Zero)
-        Thread.Sleep(100)
+        SendMessage(hWnd, WM_VSCROLL, CType(SB_TOP, IntPtr), IntPtr.Zero)
+        For i As Integer = 1 To 20
+            SendMessage(hWnd, WM_VSCROLL, CType(SB_PAGEUP, IntPtr), IntPtr.Zero)
+        Next
+        Thread.Sleep(300)
 
         ' キャプチャした画像を保存するリスト
         Dim capturedImages As New List(Of Bitmap)
@@ -87,12 +93,12 @@ Public Class ScrollCapture
             capturedImages.Add(New Bitmap(currentBitmap))
 
             ' PageDown を送信
-            SendMessage(hWndIE, WM_VSCROLL, CType(SB_PAGEDOWN, IntPtr), IntPtr.Zero)
-            Thread.Sleep(100)
+            SendMessage(hWnd, WM_VSCROLL, CType(SB_PAGEDOWN, IntPtr), IntPtr.Zero)
+            Thread.Sleep(300)
         Next
 
         ' スクロールを最上部に戻す
-        SendMessage(hWndIE, WM_VSCROLL, CType(SB_TOP, IntPtr), IntPtr.Zero)
+        SendMessage(hWnd, WM_VSCROLL, CType(SB_TOP, IntPtr), IntPtr.Zero)
 
         ' 画像を結合
         Dim combinedImage As Bitmap = CombineImagesVertically(capturedImages)
