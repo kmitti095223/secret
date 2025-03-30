@@ -1,10 +1,62 @@
-Hiduke 	予約サイト	コース	スタート時間	料金	人数
-2025/04/28(月)	GORA	ツキサップゴルフクラブ	IN 8:24	¥8,250	16 人
-2025/04/30(水)	GORA	ツキサップゴルフクラブ	IN 8:03	¥8,250	16 人
-2025/05/24(土)	GDO	苫小牧ゴルフリゾート72 アイリスゴルフクラブ	アイリス OUT 08:21	¥7,900	16 人
-2025/06/14(土)	GDO	北海道リンクスカントリー倶楽部	IN 08:38	¥8,900	16 人
-2025/07/05(土)	GDO	札樽ゴルフ倶楽部	IN 08:30	¥9,500	16 人
-2025/07/28(月)	GDO	北海道リバーヒルゴルフ倶楽部	OUT 08:28	¥5,500	16 人
-2025/08/23(土)	GDO	千歳カントリークラブ	からまつ 08:45	¥11,100	12 人
-2025/09/20(土)	GDO	札幌スコットヒルゴルフ倶楽部	ローズ 08:31	¥11,000	16 人
-2025/10/18(土)					
+Option Explicit
+
+Sub MoveActiveXTextBoxesToCells()
+    Dim ws As Worksheet
+    Dim obj As OLEObject
+    Dim cell As Range
+    Dim bDelete As Boolean
+    Dim lastCol As Long
+    Dim lastRow As Long
+    Dim c As Long
+    Dim r As Long
+    
+    ' アクティブシートを設定
+    Set ws = ActiveSheet
+    
+    ' グリッドラインを非表示にする
+    ws.Activate
+    ActiveWindow.DisplayGridlines = False
+    
+    ' ワークシート上のOLEオブジェクトをループ
+    For Each obj In ws.OLEObjects
+        bDelete = False
+        
+        ' OLEオブジェクトが配置されているセルを取得
+        Set cell = ws.Cells(obj.TopLeftCell.Row, obj.TopLeftCell.Column)
+        
+        Select Case TypeName(obj.Object)
+        Case "HTMLText"
+            ' テキストボックスの内容をセルにコピー
+            cell.Value = obj.Object.Value
+            If cell.Column > lastCol Then lastCol = cell.Column
+            If cell.Row > lastRow Then lastRow = cell.Row
+            bDelete = True
+            
+        Case "HTMLCheckbox"
+            ' チェックボックスの状態を文字列に変換（ON=?、OFF=?）
+            cell.Value = IIf(obj.Object.Checked, ChrW(&H2611), ChrW(&H2610))
+            If cell.Column > lastCol Then lastCol = cell.Column
+            If cell.Row > lastRow Then lastRow = cell.Row
+            bDelete = True
+        End Select
+        
+        ' チェックボックスやテキストボックスを削除
+        If bDelete Then
+            obj.Delete
+        End If
+        
+    Next obj
+    
+    ' 列の幅を調整
+    For c = 1 To lastCol
+        ws.Columns(c).ColumnWidth = 99
+        ws.Columns(c).AutoFit
+    Next
+    
+    ' 行の高さを調整
+    For r = 1 To lastRow
+        ws.Rows(r).AutoFit
+    Next
+End Sub
+
+
