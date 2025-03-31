@@ -1,62 +1,156 @@
-Option Explicit
+Imports System.ComponentModel.Design
+Imports Microsoft.VisualBasic.ApplicationServices
 
-Sub MoveActiveXTextBoxesToCells()
-    Dim ws As Worksheet
-    Dim obj As OLEObject
-    Dim cell As Range
-    Dim bDelete As Boolean
-    Dim lastCol As Long
-    Dim lastRow As Long
-    Dim c As Long
-    Dim r As Long
-    
-    ' アクティブシートを設定
-    Set ws = ActiveSheet
-    
-    ' グリッドラインを非表示にする
-    ws.Activate
-    ActiveWindow.DisplayGridlines = False
-    
-    ' ワークシート上のOLEオブジェクトをループ
-    For Each obj In ws.OLEObjects
-        bDelete = False
-        
-        ' OLEオブジェクトが配置されているセルを取得
-        Set cell = ws.Cells(obj.TopLeftCell.Row, obj.TopLeftCell.Column)
-        
-        Select Case TypeName(obj.Object)
-        Case "HTMLText"
-            ' テキストボックスの内容をセルにコピー
-            cell.Value = obj.Object.Value
-            If cell.Column > lastCol Then lastCol = cell.Column
-            If cell.Row > lastRow Then lastRow = cell.Row
-            bDelete = True
-            
-        Case "HTMLCheckbox"
-            ' チェックボックスの状態を文字列に変換（ON=?、OFF=?）
-            cell.Value = IIf(obj.Object.Checked, ChrW(&H2611), ChrW(&H2610))
-            If cell.Column > lastCol Then lastCol = cell.Column
-            If cell.Row > lastRow Then lastRow = cell.Row
-            bDelete = True
-        End Select
-        
-        ' チェックボックスやテキストボックスを削除
-        If bDelete Then
-            obj.Delete
+Public Class Form1
+    Private Sub Form1_Load(sender As Object, e As EventArgs) Handles MyBase.Load
+
+        Dim bmp1 As New Bitmap(Application.StartupPath & "\..\..\Test\left2.png")
+        Dim bmp2 As New Bitmap(Application.StartupPath & "\..\..\Test\right3.png")
+
+        Dim x1, x2, y1, y2 As Integer
+
+        For x1 = bmp1.Width - 1 To 0 Step -1
+            For y1 = 0 To bmp1.Height - 1
+
+                Debug.Print($"bmp1:{x1},{y1}")
+
+                For x2 = 0 To bmp1.Width - 1
+                    For y2 = 0 To bmp1.Height - 1
+                        ' Debug.Print($"bmp1:{x1},{y1}, bmp2:{x2},{y2}")
+                        If CompBmp(bmp1, x1, y1, bmp2, x2, y2) Then
+                            Debug.Print($"Match !!")
+                            OverlayBitmaps(bmp1, x1, y1, bmp2, x2, y2)
+                            End
+                        End If
+
+                    Next
+                Next
+
+            Next
+
+        Next
+
+        End
+    End Sub
+
+    Private Function CompBmp(ByRef bmp1 As Bitmap, ByVal x1 As Integer, ByVal y1 As Integer,
+                             ByRef bmp2 As Bitmap, ByVal x2 As Integer, ByVal y2 As Integer)
+
+        Const COMP_SIZE As Integer = 9999
+        Dim rc As Integer
+        Dim MatchCount As Integer = 0
+
+        ' 右サーチ
+        For x As Integer = 0 To COMP_SIZE
+            rc = ComparePixels(bmp1, x1 + x, y1, bmp2, x2 + x, y2)
+            If rc = 0 Then
+                Return False
+            ElseIf rc = -1 Then
+                Exit For
+            End If
+            MatchCount += 1
+        Next
+
+        ' 左サーチ
+        For x As Integer = 0 To COMP_SIZE
+            rc = ComparePixels(bmp1, x1 - x, y1, bmp2, x2 - x, y2)
+            If rc = 0 Then
+                Return False
+            ElseIf rc = -1 Then
+                Exit For
+            End If
+            MatchCount += 1
+        Next
+
+        ' 下サーチ
+        For y As Integer = 0 To COMP_SIZE
+            rc = ComparePixels(bmp1, x1, y1 + y, bmp2, x2, y2 + y)
+            If rc = 0 Then
+                Return False
+            ElseIf rc = -1 Then
+                Exit For
+            End If
+            MatchCount += 1
+        Next
+
+        ' 上サーチ
+        For y As Integer = 0 To COMP_SIZE
+            rc = ComparePixels(bmp1, x1, y1 - y, bmp2, x2, y2 - y)
+            If rc = 0 Then
+                Return False
+            ElseIf rc = -1 Then
+                Exit For
+            End If
+            MatchCount += 1
+        Next
+
+        If MatchCount > 30 Then
+            Return True
+        Else
+            Return False
         End If
-        
-    Next obj
-    
-    ' 列の幅を調整
-    For c = 1 To lastCol
-        ws.Columns(c).ColumnWidth = 99
-        ws.Columns(c).AutoFit
-    Next
-    
-    ' 行の高さを調整
-    For r = 1 To lastRow
-        ws.Rows(r).AutoFit
-    Next
-End Sub
+    End Function
 
+    Function ComparePixels(ByRef bmp1 As Bitmap, ByVal x1 As Integer, ByVal y1 As Integer,
+                       ByRef bmp2 As Bitmap, ByVal x2 As Integer, ByVal y2 As Integer) As Integer
+        ' 範囲外チェック
+        If x1 < 0 OrElse y1 < 0 OrElse x1 >= bmp1.Width OrElse y1 >= bmp1.Height Then
+            Return -1
+        End If
+        If x2 < 0 OrElse y2 < 0 OrElse x2 >= bmp2.Width OrElse y2 >= bmp2.Height Then
+            Return -1
+        End If
+
+        ' 各画素の色を取得
+        Dim color1 As Color = bmp1.GetPixel(x1, y1)
+        Dim color2 As Color = bmp2.GetPixel(x2, y2)
+
+        ' 色が一致するかを比較
+        If color1 = color2 Then
+            Return 1 ' 画素が一致
+        Else
+            Return 0 ' 画素が不一致
+        End If
+    End Function
+
+    Sub OverlayBitmaps(ByRef bmp1 As Bitmap, ByVal x1 As Integer, ByVal y1 As Integer,
+                   ByRef bmp2 As Bitmap, ByVal x2 As Integer, ByVal y2 As Integer)
+
+        Dim size_left As Integer = Math.Max(x1, x2)
+        Dim size_right As Integer = Math.Max(bmp1.Width - x1, bmp1.Width - x2)
+
+        Dim size_top As Integer = Math.Max(y1, y2)
+        Dim size_bottom As Integer = Math.Max(bmp1.Height - y1, bmp1.Height - y2)
+
+        ' キャンバスのサイズを計算（画像が十分に収まる領域）
+        Dim combinedWidth As Integer = size_left + size_right - 1
+        Dim combinedHeight As Integer = size_top + size_bottom - 1
+
+        Dim outputBitmap As New Bitmap(combinedWidth, combinedHeight)
+
+        ' Graphicsを使って描画
+        Using g As Graphics = Graphics.FromImage(outputBitmap)
+            ' 背景を透明にする
+            g.Clear(Color.Transparent)
+
+            ' 1枚目の画像を指定位置に描画
+            g.DrawImage(bmp1, size_left - x1, size_top - y1)
+
+            ' 2枚目の画像を指定位置に描画
+            Dim offsetX As Integer = x1 - x2
+            Dim offsetY As Integer = y1 - y2
+            g.DrawImage(bmp2, size_left - x2, size_top - y2)
+        End Using
+
+        ' 保存先を指定
+        Dim outputPath As String = Application.StartupPath & "\..\..\Test\result.png"
+        outputBitmap.Save(outputPath, Imaging.ImageFormat.Png)
+
+        ' リソースの解放
+        outputBitmap.Dispose()
+
+        Console.WriteLine($"画像の重ね合わせが完了しました: {outputPath}")
+    End Sub
+
+End Class
 
