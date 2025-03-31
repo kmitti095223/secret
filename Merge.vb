@@ -1,0 +1,155 @@
+﻿Public Class Merge
+
+    Public Shared Sub Exec(
+    ByVal sFilePathL As String, ByVal PosL As Point,
+    ByVal sFilePathR As String, ByVal PosR As Point)
+
+        Dim bmp1 As New Bitmap(sFilePathL)
+        Dim bmp2 As New Bitmap(sFilePathR)
+
+        Dim x1, x2, y1, y2 As Integer
+        Const MARGIN As Integer = 10
+
+        For x1 = Math.Max(PosL.X - MARGIN, 0) To Math.Min(PosL.X + MARGIN, bmp1.Width - 1)
+            For y1 = Math.Max(PosL.Y - MARGIN, 0) To Math.Min(PosL.Y + MARGIN, bmp1.Height - 1)
+
+                Debug.Print($"bmp1:{x1},{y1}")
+
+                For x2 = Math.Max(PosR.X - MARGIN, 0) To Math.Min(PosR.X + MARGIN, bmp2.Width - 1)
+                    For y2 = Math.Max(PosR.Y - MARGIN, 0) To Math.Min(PosR.Y + MARGIN, bmp2.Height - 1)
+                        ' Debug.Print($"bmp1:{x1},{y1}, bmp2:{x2},{y2}")
+                        If CompBmp(bmp1, x1, y1, bmp2, x2, y2) Then
+                            Debug.Print($"Match !!")
+                            OverlayBitmaps(bmp1, x1, y1, bmp2, x2, y2)
+                            End
+                        End If
+
+                    Next
+                Next
+
+            Next
+
+        Next
+
+    End Sub
+
+    Private Shared Function CompBmp(ByRef bmp1 As Bitmap, ByVal x1 As Integer, ByVal y1 As Integer,
+                             ByRef bmp2 As Bitmap, ByVal x2 As Integer, ByVal y2 As Integer)
+
+        Const COMP_SIZE As Integer = 9999
+        Dim rc As Integer
+        Dim MatchCount As Integer = 0
+
+        ' 右サーチ
+        For x As Integer = 0 To COMP_SIZE
+            rc = ComparePixels(bmp1, x1 + x, y1, bmp2, x2 + x, y2)
+            If rc = 0 Then
+                Return False
+            ElseIf rc = -1 Then
+                Exit For
+            End If
+            MatchCount += 1
+        Next
+
+        ' 左サーチ
+        For x As Integer = 0 To COMP_SIZE
+            rc = ComparePixels(bmp1, x1 - x, y1, bmp2, x2 - x, y2)
+            If rc = 0 Then
+                Return False
+            ElseIf rc = -1 Then
+                Exit For
+            End If
+            MatchCount += 1
+        Next
+
+        ' 下サーチ
+        For y As Integer = 0 To COMP_SIZE
+            rc = ComparePixels(bmp1, x1, y1 + y, bmp2, x2, y2 + y)
+            If rc = 0 Then
+                Return False
+            ElseIf rc = -1 Then
+                Exit For
+            End If
+            MatchCount += 1
+        Next
+
+        ' 上サーチ
+        For y As Integer = 0 To COMP_SIZE
+            rc = ComparePixels(bmp1, x1, y1 - y, bmp2, x2, y2 - y)
+            If rc = 0 Then
+                Return False
+            ElseIf rc = -1 Then
+                Exit For
+            End If
+            MatchCount += 1
+        Next
+
+        If MatchCount > 30 Then
+            Return True
+        Else
+            Return False
+        End If
+    End Function
+
+    Shared Function ComparePixels(ByRef bmp1 As Bitmap, ByVal x1 As Integer, ByVal y1 As Integer,
+                       ByRef bmp2 As Bitmap, ByVal x2 As Integer, ByVal y2 As Integer) As Integer
+        ' 範囲外チェック
+        If x1 < 0 OrElse y1 < 0 OrElse x1 >= bmp1.Width OrElse y1 >= bmp1.Height Then
+            Return -1
+        End If
+        If x2 < 0 OrElse y2 < 0 OrElse x2 >= bmp2.Width OrElse y2 >= bmp2.Height Then
+            Return -1
+        End If
+
+        ' 各画素の色を取得
+        Dim color1 As Color = bmp1.GetPixel(x1, y1)
+        Dim color2 As Color = bmp2.GetPixel(x2, y2)
+
+        ' 色が一致するかを比較
+        If color1 = color2 Then
+            Return 1 ' 画素が一致
+        Else
+            Return 0 ' 画素が不一致
+        End If
+    End Function
+
+    Shared Sub OverlayBitmaps(ByRef bmp1 As Bitmap, ByVal x1 As Integer, ByVal y1 As Integer,
+                   ByRef bmp2 As Bitmap, ByVal x2 As Integer, ByVal y2 As Integer)
+
+        Dim size_left As Integer = Math.Max(x1, x2)
+        Dim size_right As Integer = Math.Max(bmp1.Width - x1, bmp1.Width - x2)
+
+        Dim size_top As Integer = Math.Max(y1, y2)
+        Dim size_bottom As Integer = Math.Max(bmp1.Height - y1, bmp1.Height - y2)
+
+        ' キャンバスのサイズを計算（画像が十分に収まる領域）
+        Dim combinedWidth As Integer = size_left + size_right - 1
+        Dim combinedHeight As Integer = size_top + size_bottom - 1
+
+        Dim outputBitmap As New Bitmap(combinedWidth, combinedHeight)
+
+        ' Graphicsを使って描画
+        Using g As Graphics = Graphics.FromImage(outputBitmap)
+            ' 背景を透明にする
+            g.Clear(Color.Transparent)
+
+            ' 1枚目の画像を指定位置に描画
+            g.DrawImage(bmp1, size_left - x1, size_top - y1)
+
+            ' 2枚目の画像を指定位置に描画
+            Dim offsetX As Integer = x1 - x2
+            Dim offsetY As Integer = y1 - y2
+            g.DrawImage(bmp2, size_left - x2, size_top - y2)
+        End Using
+
+        ' 保存先を指定
+        Dim outputPath As String = Application.StartupPath & "\..\..\Test\result.png"
+        outputBitmap.Save(outputPath, Imaging.ImageFormat.Png)
+
+        ' リソースの解放
+        outputBitmap.Dispose()
+
+        Console.WriteLine($"画像の重ね合わせが完了しました: {outputPath}")
+    End Sub
+
+End Class
